@@ -1,0 +1,55 @@
+# Digital Audio Synth
+
+A small embedded firmware project for an STM32F446RE-based digital audio synthesizer and graphics demo. The repository contains a Cortex-M4 firmware build for driving an LCD, generating waveform data, and blinking a status LED using the STM32 hardware abstraction layer and CMSIS device headers.
+
+## Overview
+
+This project is designed around the STM32F446RE microcontroller and demonstrates:
+
+- initializing the MCU clock and GPIO peripherals
+- configuring SPI and LCD output
+- drawing graphics primitives and waveforms on a connected LCD
+- toggling the onboard user LED as a simple runtime heartbeat
+- building firmware with a GNU ARM toolchain and flashing via ST-Link
+
+The firmware is organized as a simple embedded application with custom LCD and utility modules plus vendor CMSIS and device support files for the STM32F446.
+
+## Features
+
+- STM32F446RE target support
+- Cortex-M4 firmware build using `arm-none-eabi-gcc`
+- SPI-based LCD initialization and updates
+- Frame-buffer based drawing
+- Waveform rendering including sine-wave output
+- Simple LED heartbeat loop
+- UART2 initialization helpers for serial output
+- Makefile-based build and flash workflow
+
+## Hardware
+
+This project targets hardware compatible with the STM32F446RE MCU, including:
+
+- STM32F446RE or similar Nucleo/Discovery-style board
+- LCD display connected over SPI
+- User LED on GPIOA pin 5 (configured in firmware)
+- ST-Link programmer/debugger for flashing
+
+## Repository Structure
+
+```text
+Digital-Audio-Synth/
+├── Makefile                     # Build and flash rules
+├── STM32F446RETX_FLASH.ld       # Linker script for flash memory layout
+├── build/                       # Generated build artifacts
+├── drivers/
+│   ├── CMSIS/                   # CMSIS headers and DSP components
+│   └── Device/                  # STM32F446 startup and device definitions
+├── include/
+│   ├── lcd.h                    # LCD driver API
+│   └── util.h                   # Utility declarations
+├── src/
+│   ├── lcd.c                    # LCD driver implementation
+│   ├── main.c                   # Main application entry point
+│   ├── system_stm32f4xx.c       # System initialization code
+│   └── util.c                   # Utility implementations
+└── README.md                   # Project documentation
