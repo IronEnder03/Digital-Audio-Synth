@@ -1,0 +1,10 @@
+out/
+tmp/
+.cmsis/
+*.cbuild-idx.yml
+Iris/*.cbuild.yml
+Iris/*.cbuild-run.yml
+Iris/.clangd
+Diff/*.cbuild.yml
+Diff/*.cbuild-run.yml
+Diff/.clangd

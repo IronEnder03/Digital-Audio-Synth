@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "STM32-GCC",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/drivers/CMSIS/CMSIS_6-6.3.0/CMSIS/Core/Include",
+                "${workspaceFolder}/drivers/CMSIS/CMSIS-DSP-1.18.0/Include",
+                "${workspaceFolder}/drivers/Device"
+            ],
+            "defines": [
+                "STM32F446xx"
+            ],
+            "compilerPath": "arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-arm"
+        }
+    ],
+    "version": 4
+}
