@@ -20,24 +20,14 @@ int main(void) {
 
     LCD_UpdateScreen(frameBuffer);
 
-    // Enable the clock for GPIO Port A
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-
-    // Configure PA5 safely as an Output Pin for your LED
-    GPIOA->MODER &= ~(0b11U << (5 * 2));
-    GPIOA->MODER |= (0b1U << (5 * 2)); 
-
     uint8_t x_offset = 0;
     // Main Execution Loop
     while (1) {
-        // Toggle the physical green user LED pin
-        GPIOA->ODR ^= GPIO_ODR_OD5;
+        LCD_ClearGraphics(frameBuffer);
 
-        //LCD_ClearGraphics(frameBuffer);
+        LCD_DrawSineWave(16, 4, x_offset, 16, frameBuffer);
 
-        //LCD_DrawSineWave(16, 4, x_offset, 16, frameBuffer);
-
-        //LCD_UpdateScreen(frameBuffer);
+        LCD_UpdateScreen(frameBuffer);
 
         x_offset += 10;
         if (x_offset >= 128) x_offset = 0;

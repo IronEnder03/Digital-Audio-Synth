@@ -21,8 +21,8 @@ DEFINES = -DSTM32F446xx
 # Includes
 INCLUDES = \
 -Iinclude \
--Idrivers/CMSIS/Core/Include \
--Idrivers/CMSIS-DSP/Include \
+-Idrivers/CMSIS/Include \
+-Idrivers/CMSIS/DSP/Include \
 -Idrivers/Device
 
 # Compiler Flags

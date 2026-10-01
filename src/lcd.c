@@ -16,8 +16,8 @@
 #define MOSI_PIN   (1 << 7)  // PA7 (SPI1 MOSI)
 
 void SPI1_Init(void) {
-    // Enable GPIO Port A, SPI1, and DMA2 clocks
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_DMA2EN;
+    // Enable GPIO Port A and SPI1 clocks
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
     RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
     // 2. Configure PA0 (RST) as General Purpose Output
@@ -57,18 +57,7 @@ void SPI1_Init(void) {
 
     SPI1->CR1 |= (SPI_CR1_SSI | SPI_CR1_SSM);
 
-    // Configure DMA2 Stream 3 for SPI1_TX
-    DMA2_Stream3->CR = 0; // Ensure disabled before editing
-    while(DMA2_Stream3->CR & DMA_SxCR_EN);
-
-    DMA2_Stream3->PAR = (uint32_t)&(SPI1->DR);       // Peripheral data destination
-    DMA2_Stream3->CR |= (3 << DMA_SxCR_CHSEL_Pos);   // Channel 3 is linked to SPI1_TX
-    DMA2_Stream3->CR |= DMA_SxCR_DIR_0;              // Memory-to-peripheral direction
-    DMA2_Stream3->CR |= DMA_SxCR_MINC;               // Automatically increment source memory address
-    DMA2_Stream3->CR |= DMA_SxCR_PL_1;               // High priority allocation
-
-    // Enable SPI with DMA
-    SPI1->CR2 |= SPI_CR2_TXDMAEN;
+    // Enable SPI
     SPI1->CR1 |= SPI_CR1_SPE;
 
     // Enable Chip Select to LOW
@@ -84,6 +73,23 @@ void SPI1_SendByte(uint8_t data) {
     SPI1->DR = data;
     // Wait until SPI1 is no longer busy
     while (SPI1->SR & SPI_SR_BSY);
+}
+
+void LCD_Parallel_WriteByte(bool isData, uint8_t byte) {
+    // If data, set RS to HIGH, else set RS to LOW
+    if (isData) {
+        GPIOA->BSRR = GPIO_BSRR_BS0;
+    } else {
+        GPIOA->BSRR = GPIO_BSRR_BR0;
+    }
+    GPIOA->BSRR = GPIO_BSRR_BR1; // Set RW to LOW
+
+    // Send byte data to GPIO output register
+    GPIOC->ODR |= (GPIOC->ODR & 0xFF00) | byte;
+
+    GPIOA->BSRR |= GPIO_BSRR_BS2; // E HIGH
+    delay(1);
+    GPIOA->BSRR |= GPIO_BSRR_BR2; // E LOW
 }
 
 void LCD_Write(uint8_t type, uint8_t value) {
@@ -125,6 +131,42 @@ void LCD_Init(void) {
     LCD_WriteCommand(0x01); // Clear display RAM memory
     delay(15);             // Execution delay required for full screen wipe
     LCD_WriteCommand(0x06); // Cursor entry shift right
+}
+
+void LCD_Init_GPIO(void) {
+    // Enable GPIO Port A clock
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    
+    // Enable GPIO Port C clock
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
+
+    // Configure GPIO pins C0-C7 for D0-D7 LCD pins
+    // Clear MODER bits for C0-C7
+    GPIOC->MODER &= ~(0xFFFF);
+
+    // Set C0-C7 to output mode
+    GPIOC->MODER |= (0x5555);
+
+    // Configure C0-C7 to High Speed mode
+    GPIOC->OSPEEDR &= ~(0xFFFF);
+    GPIOC->OSPEEDR |=  (0xAAAA); 
+
+    // Sets C0-C7 to Push-Pull mode
+    GPIOC->OTYPER &= ~(0xFF); 
+
+    // Configure GPIO pins A0-A2 for RS, RW, and E LCD pins
+    // Clear MODER bits for A0-A2 
+    GPIOA->MODER &= ~(0x3F);
+
+    // Set A0-A2 to output mode
+    GPIOA->MODER |= (0x15);
+
+    // Configure A0-A7 to High Speed mode
+    GPIOA->OSPEEDR &= ~(0x3F);
+    GPIOA->OSPEEDR &= (0x2A);
+
+    // Configure A0-A2 to Push-Pull mode
+    GPIOC->OTYPER &= (~0x7);
 }
 
 void LCD_UpdateScreen(uint8_t *frameBuffer) {
