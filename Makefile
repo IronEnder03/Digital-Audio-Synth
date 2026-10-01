@@ -7,10 +7,13 @@ SIZE = arm-none-eabi-size
 
 # Build Directory
 BUILD_DIR = build
+DEVICE_DRIVER_DIR = drivers/CMSIS/Device/ST/STM32F4xx
 
 # Source Files
-C_SOURCES = src/main.c src/system_stm32f4xx.c src/lcd.c src/util.c
-ASM_SOURCES = drivers/Device/startup_stm32f446xx.s
+C_SOURCES = src/main.c \
+$(DEVICE_DRIVER_DIR)/Source/Templates/system_stm32f4xx.c \
+src/lcd.c src/util.c
+ASM_SOURCES = $(DEVICE_DRIVER_DIR)Source/Templates/gcc/startup_stm32f446xx.s
 
 # MCU Flags (Cortex-M4 with Hardware Floating Point Units)
 MCU = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
@@ -23,7 +26,7 @@ INCLUDES = \
 -Iinclude \
 -Idrivers/CMSIS/Include \
 -Idrivers/CMSIS/DSP/Include \
--Idrivers/Device
+-Idrivers/CMSIS/Device/ST/STM32F4xx/Include
 
 # Compiler Flags
 CFLAGS = $(MCU) $(DEFINES) $(INCLUDES) -O0 -Wall -Wextra -std=c11 -fdata-sections -ffunction-sections
