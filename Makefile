@@ -13,7 +13,7 @@ DEVICE_DRIVER_DIR = drivers/CMSIS/Device/ST/STM32F4xx
 C_SOURCES = src/main.c \
 $(DEVICE_DRIVER_DIR)/Source/Templates/system_stm32f4xx.c \
 src/lcd.c src/util.c
-ASM_SOURCES = $(DEVICE_DRIVER_DIR)Source/Templates/gcc/startup_stm32f446xx.s
+ASM_SOURCES = $(DEVICE_DRIVER_DIR)/Source/Templates/gcc/startup_stm32f446xx.s
 
 # MCU Flags (Cortex-M4 with Hardware Floating Point Units)
 MCU = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
