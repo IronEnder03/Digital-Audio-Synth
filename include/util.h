@@ -6,15 +6,18 @@
 #define PI 3.141592654
 
 /**
- * @brief Creates a system delay.
- *
- * This function takes the given count and decrements
- * it to zero, which will end the delay.
- *
- * @param count  The starting count used for the delay.
- * @return       void
+ * @brief Create a system delay in milliseconds.
+ * 
+ * @param ms The delay in milliseconds.
  */
-void delay(volatile uint32_t count);
+void delay_ms(uint32_t ms);
+
+/**
+ * @brief Creates a system delay in microseconds.
+ * 
+ * @param us The delay in microseconds.
+ */
+void delay_us(uint32_t us);
 
 /**
  * @brief Returns value based on the

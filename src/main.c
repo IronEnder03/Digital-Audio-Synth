@@ -9,6 +9,9 @@ void USART2_Write(int ch);
 void USART2_SendString(char*);
 
 int main(void) {
+    // Configure SysTick to trigger an interrupt every 1ms (1000 Hz)
+    SysTick_Config(SystemCoreClock / 1000); 
+
     uint8_t frameBuffer[1024] = {0};
 
     SPI1_Init();
@@ -16,7 +19,7 @@ int main(void) {
 
     LCD_ClearGraphics(frameBuffer);
 
-    LCD_DrawSineWave(16, 4, 0, 16, frameBuffer);
+    LCD_DrawSquareWave(16, 4, 0, 16, frameBuffer);
 
     LCD_UpdateScreen(frameBuffer);
 
@@ -25,14 +28,14 @@ int main(void) {
     while (1) {
         LCD_ClearGraphics(frameBuffer);
 
-        LCD_DrawSineWave(16, 4, x_offset, 16, frameBuffer);
+        LCD_DrawSquareWave(16, 4, x_offset, 16, frameBuffer);
 
         LCD_UpdateScreen(frameBuffer);
 
         x_offset += 10;
         if (x_offset >= 128) x_offset = 0;
 
-        delay(1000);
+        delay_ms(500);
     }
 }
 

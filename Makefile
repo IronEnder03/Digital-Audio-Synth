@@ -33,7 +33,7 @@ CFLAGS = $(MCU) $(DEFINES) $(INCLUDES) -O0 -Wall -Wextra -std=c11 -fdata-section
 
 # Linker Flags
 LINKER_SCRIPT = STM32F446RETX_FLASH.ld
-LDFLAGS = $(MCU) -T$(LINKER_SCRIPT) -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(TARGET).map --specs=nano.specs
+LDFLAGS = $(MCU) -T$(LINKER_SCRIPT) -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(TARGET).map --specs=nano.specs -lm -lc
 
 # Generate Object paths
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(C_SOURCES:.c=.o)))

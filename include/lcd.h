@@ -83,21 +83,49 @@ void LCD_DrawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t *frame
 /**
  * @brief Draw sine wave on the LCD.
  * 
- * @param amplitude 
- * @param cycles 
- * @param x_offset 
- * @param y_offset 
- * @param frameBuffer 
+ * @param amplitude The amplitude of the sine wave.
+ * @param cycles The amount of cycles of the sine wave to appear on the LCD.
+ * @param x_offset Horizontal offset for the sine wave.
+ * @param y_offset Vertical offset for the sine wave.
+ * @param frameBuffer Frame buffer to update for the LCD.
  */
-void LCD_DrawSineWave(uint8_t amplitude, uint8_t cycles, uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
+void LCD_DrawSineWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
 
 /**
  * @brief Draw square wave on the LCD.
  * 
- * @param amplitude 
- * @param cycles 
- * @param frameBuffer 
+ * @param amplitude The amplitude of the square wave.
+ * @param cycles The amount of cycles of the square wave to appear on the LCD.
+ * @param x_offset Horizontal offset for the square wave.
+ * @param y_offset Vertical offset for the square wave.
+ * @param frameBuffer Frame buffer to update for the LCD.
  */
-void LCD_DrawSquareWave(uint8_t amplitude, uint8_t cycles, uint8_t *frameBuffer);
+void LCD_DrawSquareWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
+
+/**
+ * @brief Draw triangle wave on the LCD.
+ * 
+ * @param amplitude The amplitude of the triangle wave.
+ * @param cycles The amount of cycles of the triangle wave to appear on the LCD.
+ * @param x_offset Horizontal offset for the triangle wave.
+ * @param y_offset Vertical offset for the triangle wave.
+ * @param frameBuffer Frame buffer to update for the LCD.
+ */
+void LCD_DrawTriangleWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
+
+/**
+ * @brief Draw sawtooth wave on the LCD.
+ * 
+ * @param amplitude The amplitude of the sawtooth wave.
+ * @param cycles The amount of cycles of the sawtooth wave to appear on the LCD.
+ * @param x_offset Horizontal offset for the sawtooth wave.
+ * @param y_offset Vertical offset for the sawtooth wave.
+ * @param frameBuffer Frame buffer to update for the LCD.
+ */
+void LCD_DrawSawToothWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
 
 #endif

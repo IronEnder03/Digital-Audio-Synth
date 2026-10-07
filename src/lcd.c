@@ -75,23 +75,6 @@ void SPI1_SendByte(uint8_t data) {
     while (SPI1->SR & SPI_SR_BSY);
 }
 
-void LCD_Parallel_WriteByte(bool isData, uint8_t byte) {
-    // If data, set RS to HIGH, else set RS to LOW
-    if (isData) {
-        GPIOA->BSRR = GPIO_BSRR_BS0;
-    } else {
-        GPIOA->BSRR = GPIO_BSRR_BR0;
-    }
-    GPIOA->BSRR = GPIO_BSRR_BR1; // Set RW to LOW
-
-    // Send byte data to GPIO output register
-    GPIOC->ODR |= (GPIOC->ODR & 0xFF00) | byte;
-
-    GPIOA->BSRR |= GPIO_BSRR_BS2; // E HIGH
-    delay(1);
-    GPIOA->BSRR |= GPIO_BSRR_BR2; // E LOW
-}
-
 void LCD_Write(uint8_t type, uint8_t value) {
     // Set CS to HIGH
     GPIOA->BSRR = CS_PIN;
@@ -103,7 +86,7 @@ void LCD_Write(uint8_t type, uint8_t value) {
     // Set CS back to LOW
     GPIOA->BSRR = 1 << (CS_PIN + 16);
 
-    delay(1);
+    delay_ms(1);
 }
 
 void LCD_WriteCommand(uint8_t cmd) {
@@ -117,81 +100,48 @@ void LCD_WriteData(uint8_t data) {
 void LCD_Init(void) {
     // Hardware Reset Sequence via PA0
     GPIOA->BSRR = 1 << (RST_PIN + 16); // RST Low
-    delay(5);
+    delay_ms(5);
     GPIOA->BSRR = RST_PIN;       // RST High
-    delay(50);                // Wait for display driver block execution
+    delay_ms(50);                // Wait for display driver block execution
 
     // Software initialization sequence
     LCD_WriteCommand(0x30); // 8-bit basic instruction set
-    delay(1);
+    delay_ms(1);
     LCD_WriteCommand(0x30); // Repeat for loop stability
-    delay(1);
+    delay_ms(1);
     LCD_WriteCommand(0x0C); // Display ON, Cursor OFF
-    delay(1);
+    delay_ms(1);
     LCD_WriteCommand(0x01); // Clear display RAM memory
-    delay(15);             // Execution delay required for full screen wipe
+    delay_ms(5);             // Execution delay required for full screen wipe
     LCD_WriteCommand(0x06); // Cursor entry shift right
-}
-
-void LCD_Init_GPIO(void) {
-    // Enable GPIO Port A clock
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-    
-    // Enable GPIO Port C clock
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
-
-    // Configure GPIO pins C0-C7 for D0-D7 LCD pins
-    // Clear MODER bits for C0-C7
-    GPIOC->MODER &= ~(0xFFFF);
-
-    // Set C0-C7 to output mode
-    GPIOC->MODER |= (0x5555);
-
-    // Configure C0-C7 to High Speed mode
-    GPIOC->OSPEEDR &= ~(0xFFFF);
-    GPIOC->OSPEEDR |=  (0xAAAA); 
-
-    // Sets C0-C7 to Push-Pull mode
-    GPIOC->OTYPER &= ~(0xFF); 
-
-    // Configure GPIO pins A0-A2 for RS, RW, and E LCD pins
-    // Clear MODER bits for A0-A2 
-    GPIOA->MODER &= ~(0x3F);
-
-    // Set A0-A2 to output mode
-    GPIOA->MODER |= (0x15);
-
-    // Configure A0-A7 to High Speed mode
-    GPIOA->OSPEEDR &= ~(0x3F);
-    GPIOA->OSPEEDR &= (0x2A);
-
-    // Configure A0-A2 to Push-Pull mode
-    GPIOC->OTYPER &= (~0x7);
+    delay_ms(1);
+    LCD_WriteCommand(0x36); // Turn graphics on
+    delay_ms(2);
 }
 
 void LCD_UpdateScreen(uint8_t *frameBuffer) {
-    // Extended mode (graphics off)
-    LCD_WriteCommand(0x34);
-
     for (uint8_t y = 0; y < LCD_VERT_ADDR_WIDTH; y++) {
 
         // Top half refresh
         LCD_WriteCommand(0x80 | y);
+        delay_us(10);
         LCD_WriteCommand(0x80 | 0);
+        delay_us(10);
         for (uint8_t x = 0; x < LCD_HORZ_ADDR_WIDTH; x++) {
-            LCD_WriteData(frameBuffer[x + (y *16)]); 
+            LCD_WriteData(frameBuffer[x + (y *16)]);
+            delay_us(10);
         }
 
         // Bottom half refresh
         LCD_WriteCommand(0x80 | y);
+        delay_us(10);
         LCD_WriteCommand(0x80 | 8);
+        delay_us(10);
         for (uint8_t x = 0; x < LCD_HORZ_ADDR_WIDTH; x++) {
             LCD_WriteData(frameBuffer[x + (y *16) + 512]); 
+            delay_us(10);
         }
     }
-
-    // Turn graphics on
-    LCD_WriteCommand(0x36);
 }
 
 void LCD_ClearGraphics(uint8_t *frameBuffer) {
@@ -239,22 +189,48 @@ void LCD_DrawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t *frame
     }
 }
 
-void LCD_DrawSineWave(uint8_t amplitude, uint8_t cycles, uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer) {
+void LCD_DrawSineWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer) {
     for (uint8_t x = 0; x < 128; x++) {
         uint8_t y = (uint8_t) (y_offset - (amplitude * sinf((2 * PI * cycles * (x - x_offset)) / 128)));
         LCD_DrawPixel(x, y, true, frameBuffer);
     }
 }
 
-void LCD_DrawSquareWave(uint8_t amplitude, uint8_t cycles, uint8_t *frameBuffer) {
-    int8_t previousSign = 0;
+void LCD_DrawSquareWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer) {
+    float initial_angle = (2.0f * PI * cycles * (-1 - x_offset)) / 128.0f;
+    int8_t previousSign = signf(sinf(initial_angle));
     for (uint8_t x = 0; x < 128; x++) {
-        int8_t sign = signf(sinf((2 * PI * cycles * x) / 128));
-        uint8_t y = (uint8_t) (32 - (amplitude * sign));
+        int8_t sign = signf(sinf((2 * PI * cycles * (x - x_offset)) / 128));
+        uint8_t y = (uint8_t) (y_offset - (amplitude * sign));
         LCD_DrawPixel(x, y, true, frameBuffer);
-        if (previousSign != sign && previousSign != 0) {
+        if (previousSign != sign) {
             LCD_DrawLine(x, y, x, y + (amplitude * sign * 2), frameBuffer);
         }
         previousSign = sign;
+    }
+}
+
+void LCD_DrawTriangleWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer) {
+    for (uint8_t x = 0; x < 128; x++) {
+        float normal_x = (float) (((float)x - (float)x_offset)/128);
+        uint8_t y = (uint8_t) (y_offset - ((2*amplitude / PI) * asinf(sinf(2*PI*cycles*normal_x))));
+        LCD_DrawPixel(x, y, true, frameBuffer);
+    }
+}
+
+void LCD_DrawSawToothWave(uint8_t amplitude, uint8_t cycles, 
+    uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer) {
+    int8_t previousY = -1;
+    for (uint8_t x = 0; x < 128; x++) {
+        uint8_t y = (uint8_t) (y_offset - (2*amplitude * ((((float)cycles * (float)(x - x_offset))/128) - floorf((((float)cycles * (float)(x - x_offset))/128) + 0.5f))));
+        LCD_DrawPixel(x, y, true, frameBuffer);
+        // Check if the y coordinate drops vertically and draw a line if so
+        if (y > previousY && previousY != -1) {
+            LCD_DrawLine(x, previousY, x, y, frameBuffer);
+        }
+        previousY = y;
     }
 }
