@@ -16,11 +16,12 @@
 #define MOSI_PIN   (1 << 7)  // PA7 (SPI1 MOSI)
 
 void SPI1_Init(void) {
-    // Enable GPIO Port A and SPI1 clocks
+    // Enable GPIO Port A, SPI1, and DMA2 clocks
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN;
     RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
-    // 2. Configure PA0 (RST) as General Purpose Output
+    // Configure PA0 (RST) as General Purpose Output
     GPIOA->MODER &= ~(GPIO_MODER_MODER0); 
     GPIOA->MODER |=  (0x1U << GPIO_MODER_MODER0_Pos); 
 
@@ -57,6 +58,9 @@ void SPI1_Init(void) {
 
     SPI1->CR1 |= (SPI_CR1_SSI | SPI_CR1_SSM);
 
+    // Enable SPI Transmit Buffer DMA Request
+    SPI1->CR2 |= SPI_CR2_TXDMAEN;
+
     // Enable SPI
     SPI1->CR1 |= SPI_CR1_SPE;
 
@@ -65,6 +69,11 @@ void SPI1_Init(void) {
 
     // RST High
     GPIOA->BSRR = RST_PIN;
+
+    // Enable DMA2 Stream 3 Interrupt in the NVIC
+    NVIC_SetPriority(DMA2_Stream3_IRQn, 5); // Set a medium priority
+    NVIC_EnableIRQ(DMA2_Stream3_IRQn);
+
 }
 
 void SPI1_SendByte(uint8_t data) {
@@ -74,6 +83,51 @@ void SPI1_SendByte(uint8_t data) {
     // Wait until SPI1 is no longer busy
     while (SPI1->SR & SPI_SR_BSY);
 }
+
+void SPI1_SendBuffer_DMA_IT(uint8_t *buffer, uint16_t length) {
+    // Ensure the stream is disabled before configuring
+    DMA2_Stream3->CR &= ~DMA_SxCR_EN;
+    while (DMA2_Stream3->CR & DMA_SxCR_EN);
+
+    // Clear all interrupt flags for Stream 3
+    DMA2->LIFCR = (0x3DU << 22); // Clears FEIF3, DMEIF3, TEIF3, HTIF3, TCIF3
+
+    // Set Addresses and Length
+    DMA2_Stream3->PAR = (uint32_t)&(SPI1->DR);
+    DMA2_Stream3->M0AR = (uint32_t)buffer;
+    DMA2_Stream3->NDTR = length;
+
+    // Configure DMA Stream Control Register
+    DMA2_Stream3->CR = 0; 
+    DMA2_Stream3->CR |= (3U << DMA_SxCR_CHSEL_Pos);  // Channel 3
+    DMA2_Stream3->CR |= DMA_SxCR_MINC;               // Memory increment (on)
+    DMA2_Stream3->CR |= (1U << DMA_SxCR_DIR_Pos);    // Memory-to-Peripheral
+    
+    // Enable Transfer Complete Interrupt (TCIE)
+    DMA2_Stream3->CR |= DMA_SxCR_TCIE;               // <-- Enable the DMA interrupt
+
+    // Pull Chip Select LOW right before transfer starts
+    GPIOA->BSRR = 1 << (CS_PIN + 16); 
+
+    // Enable the DMA Stream (CPU continues executing next lines immediately)
+    DMA2_Stream3->CR |= DMA_SxCR_EN;
+}
+
+void DMA2_Stream3_IRQHandler(void) {
+    // Check if the Transfer Complete Interrupt flag for Stream 3 is set
+    if (DMA2->LISR & DMA_LISR_TCIF3) {
+        
+        // 1. Clear the Transfer Complete interrupt flag
+        DMA2->LIFCR = DMA_LIFCR_CTCIF3;
+        
+        // 2. Wait until the final byte clears the SPI hardware shift register
+        while (SPI1->SR & SPI_SR_BSY);
+        
+        // Pull Chip Select back to LOW (Idle state for ST7920 SPI mode)
+        GPIOA->BSRR = (1 << (CS_PIN + 16));
+    }
+}
+
 
 void LCD_Write(uint8_t type, uint8_t value) {
     // Set CS to HIGH
@@ -89,12 +143,37 @@ void LCD_Write(uint8_t type, uint8_t value) {
     delay_ms(1);
 }
 
+void LCD_Write_DMA(uint8_t type, uint8_t value) {
+    // Wait if a previous background DMA transfer is still actively running
+    while (DMA2_Stream3->CR & DMA_SxCR_EN);
+
+    // Use a static buffer so the memory remains valid after this function returns
+    static uint8_t lcd_packet[3];
+
+    // Pack the 3-byte protocol structure expected by the ST7920
+    lcd_packet[0] = type;
+    lcd_packet[1] = value & 0xF0;        // High Nibble
+    lcd_packet[2] = (value << 4) & 0xF0; // Low Nibble
+
+    // Trigger the non-blocking background DMA transmission
+    // This function automatically pulls CS LOW and starts the hardware stream
+    SPI1_SendBuffer_DMA_IT(lcd_packet, 3);
+}
+
 void LCD_WriteCommand(uint8_t cmd) {
     LCD_Write(0xF8, cmd);
 }
 
 void LCD_WriteData(uint8_t data) {
     LCD_Write(0xFA, data);
+}
+
+void LCD_WriteCommand_DMA(uint8_t cmd) {
+    LCD_Write_DMA(0xF8, cmd);
+}
+
+void LCD_WriteData_DMA(uint8_t data) {
+    LCD_Write_DMA(0xFA, data);
 }
 
 void LCD_Init(void) {
@@ -123,22 +202,22 @@ void LCD_UpdateScreen(uint8_t *frameBuffer) {
     for (uint8_t y = 0; y < LCD_VERT_ADDR_WIDTH; y++) {
 
         // Top half refresh
-        LCD_WriteCommand(0x80 | y);
+        LCD_WriteCommand_DMA(0x80 | y);
         delay_us(10);
-        LCD_WriteCommand(0x80 | 0);
+        LCD_WriteCommand_DMA(0x80 | 0);
         delay_us(10);
         for (uint8_t x = 0; x < LCD_HORZ_ADDR_WIDTH; x++) {
-            LCD_WriteData(frameBuffer[x + (y *16)]);
+            LCD_WriteData_DMA(frameBuffer[x + (y *16)]);
             delay_us(10);
         }
 
         // Bottom half refresh
-        LCD_WriteCommand(0x80 | y);
+        LCD_WriteCommand_DMA(0x80 | y);
         delay_us(10);
-        LCD_WriteCommand(0x80 | 8);
+        LCD_WriteCommand_DMA(0x80 | 8);
         delay_us(10);
         for (uint8_t x = 0; x < LCD_HORZ_ADDR_WIDTH; x++) {
-            LCD_WriteData(frameBuffer[x + (y *16) + 512]); 
+            LCD_WriteData_DMA(frameBuffer[x + (y *16) + 512]); 
             delay_us(10);
         }
     }

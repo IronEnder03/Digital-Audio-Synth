@@ -18,6 +18,42 @@ void SPI1_Init(void);
 void SPI1_SendByte(uint8_t data);
 
 /**
+ * @brief Send buffer of data through SPI1 and DMA.
+ * 
+ * @param buffer The buffer contain the daya to send through SPI1 and DMA.
+ * @param length The length of the buffer being sent.
+ */
+void SPI1_SendBuffer_DMA_IT(uint8_t *buffer, uint16_t length);
+
+/**
+ * @brief IRQ Handler for DMA2 Stream 3.
+ * 
+ */
+void DMA2_Stream3_IRQHandler(void);
+
+/**
+ * @brief Write to LCD through SPI and DMA.
+ * 
+ * @param type The type of value to write to the LCD.
+ * @param value The value to write to the LCD.
+ */
+void LCD_Write_DMA(uint8_t type, uint8_t value);
+
+/**
+ * @brief Write command to LCD through DMA.
+ * 
+ * @param cmd The command to send to the LCD.
+ */
+void LCD_WriteCommand_DMA(uint8_t cmd);
+
+/**
+ * @brief Write data to the LCD through DMA.
+ * 
+ * @param data The data to send to the LCD.
+ */
+void LCD_WriteData_DMA(uint8_t data);
+
+/**
  * @brief Initialize connected LCD.
  * 
  */
