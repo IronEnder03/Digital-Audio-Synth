@@ -5,8 +5,6 @@
 #include "audio_out.h"
 #include "midi_input.h"
 
-I2S_BUFFER_LEN
-
 int main(void) {
     // Configure SysTick to trigger an interrupt every 1ms (1000 Hz)
     SysTick_Config(SystemCoreClock / 1000); 
@@ -43,7 +41,6 @@ int main(void) {
 
         // Read from MIDI input and send digital audio data based on input
         Proccess_MIDI_Buffer();
-        Process_Audio(i2s_tx_buffer, I2S_BUFFER_SIZE);
     }
 }
 

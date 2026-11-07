@@ -8,7 +8,7 @@
 #define SAMPLING_FREQ_HZ 48000.0f
 
 #define I2S_BUFFER_SIZE 512
-uint32_t i2s_tx_buffer[I2S_BUFFER_SIZE];
+extern uint16_t i2s_tx_buffer[I2S_BUFFER_SIZE];
 
 /**
  * @brief Initialize I2S and DMA peripherals for outputting digital audio data.
@@ -38,7 +38,8 @@ void Synth_Stop_Note(uint8_t channel, uint8_t noteNum);
  * 
  * @param i2s_buffer The I2S buffer where the digital audio data will be stored in.
  * @param bufferLen The length of the I2S buffer.
+ * @param startIndex The start index to start reading the buffer from.
  */
-void Process_Audio(uint16_t* i2s_buffer, uint16_t bufferLen);
+void Process_Audio(uint16_t* i2s_buffer, uint16_t bufferLen,uint16_t startIndex);
 
 #endif

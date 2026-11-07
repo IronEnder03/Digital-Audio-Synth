@@ -2,6 +2,8 @@
 
 #include "arm_math.h"
 
+uint16_t i2s_tx_buffer[I2S_BUFFER_SIZE] = {0};
+
 void I2S_DMA_Init() {
     // Enable GPIO Port B, I2S2, and DMA1 clocks
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
@@ -81,13 +83,13 @@ void DMA1_Stream4_IRQHandler(void) {
     // Half-transfer complete, second half of buffer is safe to write to
     if (DMA1->HISR & DMA_HISR_HTIF4) {
         DMA1->HIFCR = DMA_HIFCR_CHTIF4;
-        Process_Audio_Block(&i2s_tx_buffer[I2S_BUFFER_SIZE/2]);
+        Process_Audio(i2s_tx_buffer, I2S_BUFFER_SIZE/2, I2S_BUFFER_SIZE/2);
     }
 
     // Full-transfer complete, first half of buffer is safe to write to
     if (DMA1->HISR & DMA_HISR_TCIF4) {
         DMA1->HIFCR = DMA_HIFCR_CTCIF4;
-        Process_Audio_Block(&i2s_tx_buffer[0]);
+        Process_Audio(i2s_tx_buffer, I2S_BUFFER_SIZE/2, 0);
     }
 }
 
@@ -119,8 +121,8 @@ void Synth_Stop_Note(uint8_t channel, uint8_t noteNum) {
     }
 }
 
-void Process_Audio(uint16_t* i2s_buffer, uint16_t bufferLen) {
-    for (int i = 0; i < bufferLen; i++) {
+void Process_Audio(uint16_t* i2s_buffer, uint16_t bufferLen, uint16_t startIndex) {
+    for (int i = startIndex; i < bufferLen + startIndex; i++) {
         float32_t mixedSample = 0.0f;
         for (int v = 0; v < MAX_VOICES; v++) {
             if (voices[v].active) {

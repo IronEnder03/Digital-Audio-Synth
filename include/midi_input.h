@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "stm32f4xx.h"
+#include "arm_math.h"
 
 #define MIDI_BUF_SIZE 64
 extern uint8_t midi_rx_buffer[MIDI_BUF_SIZE];
@@ -16,7 +17,7 @@ typedef struct Voice {
     uint8_t velocity;
     float32_t phase;
 } Voice;
-Voice voices[MAX_VOICES];
+extern Voice voices[MAX_VOICES];
 
 typedef enum midi_state_t {
     MIDI_STATE_IDLE,

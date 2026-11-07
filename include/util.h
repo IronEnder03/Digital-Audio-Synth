@@ -5,7 +5,7 @@
 
 #define PI 3.141592654
 
-volatile uint32_t msTicks = 0;
+extern volatile uint32_t msTicks;
 
 /**
  * @brief Create a system delay in milliseconds.

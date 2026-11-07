@@ -1,6 +1,9 @@
 #include "midi_input.h"
 #include "audio_out.h"
 
+uint8_t midi_rx_buffer[MIDI_BUF_SIZE] = {0};
+Voice voices[MAX_VOICES] = {0};
+
 void USART1_DMA_MIDI_Init(void) {
     // Turn on system clocks
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;  
@@ -76,9 +79,9 @@ void Proccess_MIDI_Buffer(void) {
 
 void Parse_MIDI_Byte(uint8_t byte) {
     static midi_state_t currentState = MIDI_STATE_IDLE;
-    static currentStatus = 0;
-    static runningStatus = 0;
-    static noteNumber = 0;
+    static uint8_t currentStatus = 0;
+    static uint8_t runningStatus = 0;
+    static uint8_t noteNumber = 0;
 
     // Drop real-time messages
     if (byte >= 0xF8) return;
@@ -122,11 +125,14 @@ void Parse_MIDI_Byte(uint8_t byte) {
             } 
             else {
                 // Key Released (Handles both 0x80 and 0x90 with Vel 0)
-                Synth_Release_Note(channel, noteNumber);
+                Synth_Stop_Note(channel, noteNumber);
             }
 
             currentState = MIDI_STATE_IDLE; // Ready for next pair of bytes via running status
             break;
+
+        default:
+            currentState = MIDI_STATE_IDLE;
     }
 }
 

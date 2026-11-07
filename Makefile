@@ -9,23 +9,32 @@ SIZE = arm-none-eabi-size
 BUILD_DIR = build
 DEVICE_DRIVER_DIR = drivers/CMSIS/Device/ST/STM32F4xx
 
-# Source Files
+# Source Files (FIXED: Changed capitalized 'Drivers' to lowercase 'drivers')
 C_SOURCES = src/main.c \
 $(DEVICE_DRIVER_DIR)/Source/Templates/system_stm32f4xx.c \
-src/lcd.c src/util.c
+src/lcd.c src/util.c src/midi_input.c src/audio_out.c 
 ASM_SOURCES = $(DEVICE_DRIVER_DIR)/Source/Templates/gcc/startup_stm32f446xx.s
+
+C_SOURCES += \
+drivers/CMSIS/DSP/Source/BasicMathFunctions/BasicMathFunctions.c \
+drivers/CMSIS/DSP/Source/CommonTables/CommonTables.c \
+drivers/CMSIS/DSP/Source/TransformFunctions/TransformFunctions.c \
+drivers/CMSIS/DSP/Source/FastMathFunctions/FastMathFunctions.c \
+drivers/CMSIS/DSP/Source/FilteringFunctions/FilteringFunctions.c \
+drivers/CMSIS/DSP/Source/SupportFunctions/SupportFunctions.c
 
 # MCU Flags (Cortex-M4 with Hardware Floating Point Units)
 MCU = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
-# Macros needed by CMSIS
-DEFINES = -DSTM32F446xx
+# Macros needed by CMSIS (ADDED: -DDISABLEFLOAT16 to prevent compilation errors)
+DEFINES = -DSTM32F446xx -DARM_MATH_CM4 -DDISABLEFLOAT16
 
-# Includes
+# Includes (ADDED: -Idrivers/CMSIS/DSP/PrivateInclude)
 INCLUDES = \
 -Iinclude \
 -Idrivers/CMSIS/Include \
 -Idrivers/CMSIS/DSP/Include \
+-Idrivers/CMSIS/DSP/PrivateInclude \
 -Idrivers/CMSIS/Device/ST/STM32F4xx/Include
 
 # Compiler Flags
@@ -72,4 +81,3 @@ erase:
 	st-flash --connect-under-reset erase
 
 .PHONY: all clean flash erase
-
