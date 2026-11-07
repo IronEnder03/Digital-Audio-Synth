@@ -117,10 +117,10 @@ void DMA2_Stream3_IRQHandler(void) {
     // Check if the Transfer Complete Interrupt flag for Stream 3 is set
     if (DMA2->LISR & DMA_LISR_TCIF3) {
         
-        // 1. Clear the Transfer Complete interrupt flag
+        // Clear the Transfer Complete interrupt flag
         DMA2->LIFCR = DMA_LIFCR_CTCIF3;
         
-        // 2. Wait until the final byte clears the SPI hardware shift register
+        // Wait until the final byte clears the SPI hardware shift register
         while (SPI1->SR & SPI_SR_BSY);
         
         // Pull Chip Select back to LOW (Idle state for ST7920 SPI mode)

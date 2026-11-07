@@ -1,7 +1,5 @@
 #include "util.h"
 
-volatile uint32_t msTicks = 0;
-
 // SysTick Interrupt Handler - increments every 1 millisecond
 void SysTick_Handler(void) {
     msTicks++;
