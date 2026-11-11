@@ -5,6 +5,15 @@
 int16_t i2s_tx_buffer[I2S_BUFFER_SIZE] = {0};
 uint32_t midi_fixed_phase_inc_lut[MAX_MIDI_NOTES];
 int16_t sine_wave_lut[SINE_LUT_SIZE];
+int16_t square_wave_lut[SINE_LUT_SIZE];
+int16_t triangle_wave_lut[SINE_LUT_SIZE];
+int16_t sawtooth_wave_lut[SINE_LUT_SIZE];
+typedef enum WaveForm {
+    SINE,
+    SQUARE,
+    TRIANGLE,
+    SAWTOOTH,
+} WaveForm;
 
 void I2S_DMA_Init(void) {
     // Enable GPIO Port B, I2S2, and DMA1 clocks
@@ -203,6 +212,17 @@ void Audio_Tables_Generate_On_Boot(void) {
         
         // Scale a standard float sine wave up to safe 16-bit volume levels (~26000)
         sine_wave_lut[i] = (int16_t)(sinf(radians) * 26000.0f);
+
+        if (i < SINE_LUT_SIZE / 2){
+            square_wave_lut[i] = (int16_t)(26000.0f);
+            triangle_wave_lut[i] = (int16_t)(-26000 + radians * 16552.0f);
+        } 
+        else{
+            square_wave_lut[i] = (int16_t)(-26000.0f);
+            triangle_wave_lut[i] = (int16_t)(78000.0f - (radians * 16552.0f));
+        } 
+
+        sawtooth_wave_lut[i] = (int16_t)(-26000 + radians * 8276.0f);
     }
 
     // 2. Automatically generate the 128-note Pitch Phase Increment LUT
