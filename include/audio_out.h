@@ -8,7 +8,14 @@
 #define SAMPLING_FREQ_HZ 48000.0f
 
 #define I2S_BUFFER_SIZE 512
-extern uint16_t i2s_tx_buffer[I2S_BUFFER_SIZE];
+extern int16_t i2s_tx_buffer[I2S_BUFFER_SIZE];
+extern volatile bool audio_buffer_request;
+extern volatile uint16_t audio_target_index;
+
+#define MAX_MIDI_NOTES 128
+#define SINE_LUT_SIZE 256
+extern uint32_t midi_fixed_phase_inc_lut[MAX_MIDI_NOTES];
+extern int16_t sine_wave_lut[SINE_LUT_SIZE];
 
 /**
  * @brief Initialize I2S and DMA peripherals for outputting digital audio data.
@@ -40,6 +47,8 @@ void Synth_Stop_Note(uint8_t channel, uint8_t noteNum);
  * @param bufferLen The length of the I2S buffer.
  * @param startIndex The start index to start reading the buffer from.
  */
-void Process_Audio(uint16_t* i2s_buffer, uint16_t bufferLen,uint16_t startIndex);
+void Process_Audio(int16_t* i2s_buffer, uint16_t bufferLen,uint16_t startIndex);
+
+void Audio_Tables_Generate_On_Boot(void);
 
 #endif

@@ -11,9 +11,11 @@ int main(void) {
 
     uint8_t frameBuffer[1024] = {0};
 
+    Audio_Tables_Generate_On_Boot();
+
     SPI1_Init();
     LCD_Init();
-    USART1_DMA_MIDI_Init();
+    Hardware_Serial_Dual_Init();
     I2S_DMA_Init();
 
     LCD_ClearGraphics(frameBuffer);
@@ -27,6 +29,15 @@ int main(void) {
 
     // Main Execution Loop
     while (1) {
+        // 1. Drain your MIDI controller circular buffer
+        Proccess_MIDI_Buffer();
+
+        // 2. Process audio ONLY when the hardware requests a half-buffer swap
+        if (audio_buffer_request) {
+            audio_buffer_request = false; // Reset the flag
+            Process_Audio((int16_t*)i2s_tx_buffer, I2S_BUFFER_SIZE / 2, audio_target_index);
+        }
+
         // Update LCD every 400 milliseconds
         if (msTicks - start > 400) {
             LCD_ClearGraphics(frameBuffer);
@@ -38,9 +49,6 @@ int main(void) {
             x_offset += 10;
             if (x_offset >= 128) x_offset = 0;
         }
-
-        // Read from MIDI input and send digital audio data based on input
-        Proccess_MIDI_Buffer();
     }
 }
 

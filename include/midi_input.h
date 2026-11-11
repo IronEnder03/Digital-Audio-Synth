@@ -11,13 +11,14 @@ extern uint8_t midi_rx_buffer[MIDI_BUF_SIZE];
 
 #define MAX_VOICES 8
 typedef struct Voice {
-    bool active;
-    uint8_t channel;
-    uint8_t note;
-    uint8_t velocity;
-    float32_t phase;
+    volatile bool active;
+    volatile uint8_t channel;
+    volatile uint8_t note;
+    volatile uint8_t velocity;
+    volatile uint32_t phase;
+    volatile uint32_t phaseInc;
 } Voice;
-extern Voice voices[MAX_VOICES];
+extern Voice volatile voices[MAX_VOICES];
 
 typedef enum midi_state_t {
     MIDI_STATE_IDLE,
@@ -25,11 +26,16 @@ typedef enum midi_state_t {
     MIDI_STATE_WAIT_DATA2
 } midi_state_t;
 
+
 /**
- * @brief Initialize USART1 and DMA peripherals.
+ * @brief Initialize USART and DMA peripherals.
  * 
  */
-void USART1_DMA_MIDI_Init(void);
+void Hardware_Serial_Dual_Init(void);
+
+void UART2_SendChar(char c);
+
+void UART2_SendString(const char* str);
 
 /**
  * @brief Process the data currently in the RX MIDI buffer. Should be in main loop.

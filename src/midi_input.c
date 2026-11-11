@@ -2,77 +2,137 @@
 #include "audio_out.h"
 
 uint8_t midi_rx_buffer[MIDI_BUF_SIZE] = {0};
-Voice voices[MAX_VOICES] = {0};
+Voice volatile voices[MAX_VOICES] = {0};
 
-void USART1_DMA_MIDI_Init(void) {
-    // Turn on system clocks
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;  
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-    RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN;
-
-    // Configure PA9 (TX) and PA10 (RX) for Alternate Function
-    GPIOA->MODER &= ~(GPIO_MODER_MODER9 | GPIO_MODER_MODER10);
-    GPIOA->MODER |= (0x2U << GPIO_MODER_MODER9_Pos) | (0x2U << GPIO_MODER_MODER10_Pos);
-
-    // Set PA9 and PA10 to High Speed
-    GPIOA->OSPEEDR &= ~(GPIO_OSPEEDR_OSPEED9 | GPIO_OSPEEDR_OSPEED10);
-    GPIOA->OSPEEDR |= (0x2U << (9 * 2)) | (0x2U << (10 * 2));
-
-    // Map pins to Alternate Function 7 (AF7 = USART1) safely
-    GPIOA->AFR[1] &= ~(0xFU << ((9 - 8) * 4)); // Clear PA9 mapping
-    GPIOA->AFR[1] |=  (0x7U << ((9 - 8) * 4));  // Set PA9 to AF7
-
-    GPIOA->AFR[1] &= ~(0xFU << ((10 - 8) * 4)); // Clear PA9 mapping
-    GPIOA->AFR[1] |=  (0x7U << ((10 - 8) * 4));  // Set PA9 to AF7
-
-    // Set Baud Rate (31,250 at default 16MHz clock) (Mantissa = 32, Fraction = 0)
-    USART2->BRR = 0x0100U;
-
-    // Enable DMA for reception
-    USART2->CR3 |= (USART_CR3_DMAR);
+void Hardware_Serial_Dual_Init(void) {
+    // 1. Turn on all required system clocks
+    RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN);  // Enable GPIOA & GPIOC
+    RCC->APB1ENR |= (RCC_APB1ENR_USART2EN | RCC_APB1ENR_USART3EN); // Enable USART2 & USART3
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;                            // Enable DMA1 
     
-    // Enable receiver and global UART block
-    USART2->CR1 |= (USART_CR1_RE | USART_CR1_UE);
+    // Configure the PLLI2S multipliers inside the clock configuration register
+    // To generate a precise 48kHz audio clock sample rate from a standard 16MHz system clock:
+    // Set PLLI2SN (multiplication factor) = 192 (Bits 14:6)
+    // Set PLLI2SR (division factor) = 2 (Bits 30:28)
+    RCC->PLLI2SCFGR = (192U << RCC_PLLI2SCFGR_PLLI2SN_Pos) | (2U << RCC_PLLI2SCFGR_PLLI2SR_Pos);
 
-    // Ensure the stream is disabled before configuring
-    DMA2_Stream2->CR &= ~DMA_SxCR_EN;
-    while (DMA2_Stream2->CR & DMA_SxCR_EN);
+    // Safely route PLLI2S_R as the dedicated audio source clock layout for I2S2
+    // Clear old clock selection bits (bits 23:22) in the Dedicated Clock Configuration Register
+    RCC->DCKCFGR &= ~(3U << 22); 
 
-    // Set Addresses and Length
-    DMA2_Stream2->PAR = (uint32_t)&(USART1->DR);
-    DMA2_Stream2->M0AR = (uint32_t)midi_rx_buffer;
-    DMA2_Stream2->NDTR = MIDI_BUF_SIZE;
+    // Turn on the physical PLLI2S hardware engine block
+    RCC->CR |= RCC_CR_PLLI2SON;
 
-    // Configure DMA Stream Control Register
-    DMA2_Stream2->CR = 0; 
-    DMA2_Stream2->CR |= (4U << DMA_SxCR_CHSEL_Pos);  // Channel 4
-    DMA2_Stream2->CR |= DMA_SxCR_MINC;               // Memory increment (on)
-    DMA2_Stream2->CR &= ~(DMA_SxCR_PINC);            // No peripheral increment
-    DMA2_Stream2->CR &= ~DMA_SxCR_MSIZE;             // Memory size: 8-bit (00)
-    DMA2_Stream2->CR &= ~DMA_SxCR_PSIZE;             // Peripheral size: 8-bit (00)
+    // This will now exit instantly because the multipliers above give it a real signal to stabilize!
+    while((RCC->CR & RCC_CR_PLLI2SRDY) == 0);
 
-    // Circular mode configuration
-    DMA2_Stream2->CR |= DMA_SxCR_CIRC;    // Circular mode (auto-wraps around buffer)
-    DMA2_Stream2->CR &= ~DMA_SxCR_DIR;    // Direction: Peripheral-to-memory (00)
+    // =========================================================================
+    // GPIO CONFIGURATION: PA2 (USART2 TX) & PC11 (USART3 RX)
+    // =========================================================================
+    
+    // Configure PA2 for Alternate Function mode
+    GPIOA->MODER &= ~GPIO_MODER_MODER2;
+    GPIOA->MODER |= (0x2U << GPIO_MODER_MODER2_Pos);
+    GPIOA->OSPEEDR |= (0x2U << GPIO_OSPEEDR_OSPEED2_Pos); // High Speed
+    GPIOA->AFR[0] &= ~(0xFU << (2 * 4)); 
+    GPIOA->AFR[0] |=  (0x7U << (2 * 4));                 // Map PA2 to AF7 (USART2 TX)
 
-    // Enable DMA
-    DMA2_Stream2->CR |= DMA_SxCR_EN;
+    // Configure PC11 for Alternate Function mode
+    GPIOC->MODER &= ~GPIO_MODER_MODER11;
+    GPIOC->MODER |= (0x2U << GPIO_MODER_MODER11_Pos);
+    GPIOC->OSPEEDR |= (0x2U << GPIO_OSPEEDR_OSPEED11_Pos); // High Speed
+    GPIOC->AFR[1] &= ~(0xFU << ((11 - 8) * 4));
+    GPIOC->AFR[1] |=  (0x7U << ((11 - 8) * 4));           // Map PC11 to AF7 (USART3 RX)
+
+    // =========================================================================
+    // PERIPHERAL CONFIGURATION: USART2 (Debug TX) & USART3 (MIDI RX)
+    // =========================================================================
+
+    // Set USART2 to 115200 Baud for ultra-fast, clean text logging
+    #if defined(SystemCoreClock) && (SystemCoreClock == 180000000 || SystemCoreClock == 168000000)
+        // 42,000,000 / (16 * 115200) = 22.78 -> Mantissa = 22 (0x16), Fraction = 0.78 * 16 = 12 (0xC)
+        USART2->BRR = (0x16U << 4) | 0xCU;
+    #else
+        // Fallback for default internal HSI 16MHz clock speed
+        // 16,000,000 / (16 * 115200) = 8.68 -> Mantissa = 8, Fraction = 0.68 * 16 = 11 (0xB)
+        USART2->BRR = (8U << 4) | 0xBU;
+    #endif
+
+    // Set USART3 to 31250 Baud for standard MIDI incoming frames
+    #if defined(SystemCoreClock) && (SystemCoreClock == 180000000 || SystemCoreClock == 168000000)
+        // 42,000,000 / (16 * 31,250) = 84.00 -> Mantissa = 84 (0x54), Fraction = 0
+        USART3->BRR = (84U << 4);
+    #else
+        // Fallback for default internal HSI 16MHz clock speed
+        // 16,000,000 / (16 * 31,250) = 32.00 -> Mantissa = 32 (0x20), Fraction = 0
+        USART3->BRR = (32U << 4);
+    #endif
+
+    // Enable USART2 Transmitter only (for debugging console logs)
+    USART2->CR1 |= (USART_CR1_TE | USART_CR1_UE);
+
+    // Enable USART3 Receiver and activate its DMA Request path
+    USART3->CR3 |= USART_CR3_DMAR;
+    USART3->CR1 |= (USART_CR1_RE | USART_CR1_UE);
+
+    // =========================================================================
+    // DMA CONFIGURATION: DMA1 Stream 1 Channel 4 (USART3_RX Hardware Map)
+    // =========================================================================
+    
+    // Ensure Stream 1 is fully disabled before changing settings
+    DMA1_Stream1->CR &= ~DMA_SxCR_EN;
+    while (DMA1_Stream1->CR & DMA_SxCR_EN);
+
+    // Bind hardware registers and user memory array variables
+    DMA1_Stream1->PAR = (uint32_t)&(USART3->DR);
+    DMA1_Stream1->M0AR = (uint32_t)midi_rx_buffer;
+    DMA1_Stream1->NDTR = MIDI_BUF_SIZE;
+
+    // Build the register configuration properties directly
+    DMA1_Stream1->CR = 0; 
+    DMA1_Stream1->CR |= (4U << DMA_SxCR_CHSEL_Pos);  // Channel 4 maps cleanly to USART3_RX
+    DMA1_Stream1->CR |= DMA_SxCR_MINC;               // Increment memory layout
+    DMA1_Stream1->CR &= ~DMA_SxCR_PINC;              // Fixed peripheral destination
+    DMA1_Stream1->CR &= ~DMA_SxCR_MSIZE;             // 8-bit memory tracking
+    DMA1_Stream1->CR &= ~DMA_SxCR_PSIZE;             // 8-bit peripheral tracking
+    DMA1_Stream1->CR |= DMA_SxCR_CIRC;               // Circular mode active
+    DMA1_Stream1->CR &= ~DMA_SxCR_DIR;               // Peripheral-to-memory destination
+
+    // Clear legacy hardware interrupt state flags before startup
+    DMA1->LIFCR = DMA_LIFCR_CTCIF1 | DMA_LIFCR_CHTIF1 | DMA_LIFCR_CTEIF1 | DMA_LIFCR_CDMEIF1 | DMA_LIFCR_CFEIF1;
+
+    // Turn Stream 1 on to begin monitoring the input pipe in the background
+    DMA1_Stream1->CR |= DMA_SxCR_EN;
+}
+
+void UART2_SendChar(char c) {
+    // Wait until the Transmit Data Register is completely empty and ready (TXE)
+    while (!(USART2->SR & USART_SR_TXE));
+    // Write character byte straight to data register
+    USART2->DR = c;
+}
+
+void UART2_SendString(const char* str) {
+    while (*str) {
+        UART2_SendChar(*str++);
+    }
 }
 
 void Proccess_MIDI_Buffer(void) {
-    static uint16_t readIndex = 0;
+    static volatile uint16_t readIndex = 0;
 
-    // NDTR counts down
-    uint16_t dmaWriteIndex = MIDI_BUF_SIZE - (DMA2_Stream2->NDTR);
+    // Snapshot current write tail outside condition check loop to secure pointer data
+    uint16_t dmaWriteIndex = MIDI_BUF_SIZE - (DMA1_Stream1->NDTR);
 
-    // Process all unread bytes until we catch up to the DMA write head
     while (readIndex != dmaWriteIndex) {
         uint8_t incomingByte = midi_rx_buffer[readIndex];
         
-        // Advance read pointer with wrapping
-        readIndex = (readIndex + 1) % MIDI_BUF_SIZE;
+        // Inline incremental wrapping bounds calculation
+        readIndex++;
+        if (readIndex >= MIDI_BUF_SIZE) {
+            readIndex = 0;
+        }
         
-        // Pass the byte to our MIDI state machine parser
         Parse_MIDI_Byte(incomingByte);
     }
 }
