@@ -9,7 +9,6 @@ SIZE = arm-none-eabi-size
 BUILD_DIR = build
 DEVICE_DRIVER_DIR = drivers/CMSIS/Device/ST/STM32F4xx
 
-# Source Files (FIXED: Changed capitalized 'Drivers' to lowercase 'drivers')
 C_SOURCES = src/main.c \
 $(DEVICE_DRIVER_DIR)/Source/Templates/system_stm32f4xx.c \
 src/lcd.c src/util.c src/midi_input.c src/audio_out.c 

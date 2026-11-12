@@ -6,6 +6,9 @@
 #include "midi_input.h"
 
 int main(void) {
+    // Configure system clock for peripherals
+    //void SystemClock_Config(void);
+
     // Configure SysTick to trigger an interrupt every 1ms (1000 Hz)
     SysTick_Config(SystemCoreClock / 1000); 
 
@@ -38,8 +41,8 @@ int main(void) {
             Process_Audio((int16_t*)i2s_tx_buffer, I2S_BUFFER_SIZE / 2, audio_target_index);
         }
 
-        // Update LCD every 400 milliseconds
-        if (msTicks - start > 400) {
+        // Update LCD every 200 milliseconds
+        if (msTicks - start > 200) {
             LCD_ClearGraphics(frameBuffer);
 
             LCD_DrawSquareWave(16, 4, x_offset, 16, frameBuffer);
@@ -48,6 +51,8 @@ int main(void) {
 
             x_offset += 10;
             if (x_offset >= 128) x_offset = 0;
+
+            start = msTicks;
         }
     }
 }

@@ -8,6 +8,7 @@ int16_t sine_wave_lut[SINE_LUT_SIZE];
 int16_t square_wave_lut[SINE_LUT_SIZE];
 int16_t triangle_wave_lut[SINE_LUT_SIZE];
 int16_t sawtooth_wave_lut[SINE_LUT_SIZE];
+
 typedef enum WaveForm {
     SINE,
     SQUARE,
@@ -31,19 +32,14 @@ void I2S_DMA_Init(void) {
     // Configure PLLI2SCFGR for 192 MHz output
     // Use PLLI2SM = 8 for 16 MHz HSI (change 8U to 4U if using 8 MHz HSE)
     RCC->PLLI2SCFGR = (8U   << RCC_PLLI2SCFGR_PLLI2SM_Pos) |
-                    (192U << RCC_PLLI2SCFGR_PLLI2SN_Pos) |
-                    (2U   << RCC_PLLI2SCFGR_PLLI2SR_Pos);
+                      (192U << RCC_PLLI2SCFGR_PLLI2SN_Pos) |
+                      (2U   << RCC_PLLI2SCFGR_PLLI2SR_Pos);
 
     // Enable PLLI2S and wait for lock
     RCC->CR |= RCC_CR_PLLI2SON;
     while (!(RCC->CR & RCC_CR_PLLI2SRDY));
 
-
-    // =========================================================================
-    // REST OF YOUR CODE (PB9, PB10, PB15 PIN INITIALIZATIONS)
-    // =========================================================================
-
-    // 2. ISOLATED MODER MASKING: Modify ONLY pins 9, 10, and 15
+    // Modify ONLY pins 9, 10, and 15
     GPIOB->MODER &= ~( (3U << GPIO_MODER_MODER9_Pos)  | 
                        (3U << GPIO_MODER_MODER10_Pos) | 
                        (3U << GPIO_MODER_MODER15_Pos) );
@@ -51,7 +47,7 @@ void I2S_DMA_Init(void) {
                        (2U << GPIO_MODER_MODER10_Pos) | 
                        (2U << GPIO_MODER_MODER15_Pos) );
 
-    // 3. ISOLATED OSPEEDR MASKING: High Speed for audio lines
+    // High Speed for audio lines
     GPIOB->OSPEEDR &= ~( (3U << GPIO_OSPEEDR_OSPEED9_Pos)  | 
                          (3U << GPIO_OSPEEDR_OSPEED10_Pos) | 
                          (3U << GPIO_OSPEEDR_OSPEED15_Pos) );
@@ -59,13 +55,12 @@ void I2S_DMA_Init(void) {
                          (3U << GPIO_OSPEEDR_OSPEED10_Pos) | 
                          (3U << GPIO_OSPEEDR_OSPEED15_Pos) );
 
-    // 4. FIXED: Clean, isolated mask clearing inside the AFR[1] High Register array slot
-    // This removes ONLY the 4-bit fields for pins 9, 10, and 15. PB13 stays perfectly untouched!
+    // This removes the 4-bit fields for pins 9, 10, and 15
     GPIOB->AFR[1] &= ~( (0xFU << ((9 - 8) * 4))  | 
                         (0xFU << ((10 - 8) * 4)) | 
                         (0xFU << ((15 - 8) * 4)) );
 
-    // 5. FIXED: Assign exactly AF5 (I2S2) using literal bit shifts into AFR[1]
+    // Assign exactly AF5 (I2S2) using literal bit shifts into AFR[1]
     GPIOB->AFR[1] |=  ( (5U << ((9 - 8) * 4))  | // PB9  -> I2S2_WS
                         (5U << ((10 - 8) * 4)) | // PB10 -> I2S2_CK
                         (5U << ((15 - 8) * 4)) );// PB15 -> I2S2_SD
@@ -75,14 +70,11 @@ void I2S_DMA_Init(void) {
     SPI2->I2SCFGR |= (0x1 << SPI_I2SCFGR_I2SMOD_Pos); // I2S Mode
     SPI2->I2SCFGR |= (0x2 << SPI_I2SCFGR_I2SCFG_Pos); // Master Transmit Mode
 
-    // Set data  and channel length to 32-bit
-    SPI2->I2SCFGR |= (0x2 << SPI_I2SCFGR_DATLEN_Pos);
-    SPI2->I2SCFGR |= (0x1 << SPI_I2SCFGR_CHLEN_Pos);
-
-    // Prescaler values set for fs = 48kHz
+    // Prescaler for exact fs = 48.000 kHz:
+    // 192,000,000 / (32 * (2 * 62 + 1)) = 48,000 Hz
     SPI2->I2SPR = 0;
-    SPI2->I2SPR |= (0x1 << SPI_I2SPR_ODD_Pos);
-    SPI2->I2SPR |= (0x3E << SPI_I2SPR_I2SDIV_Pos);
+    SPI2->I2SPR |= (0x1U  << SPI_I2SPR_ODD_Pos);       // ODD = 1
+    SPI2->I2SPR |= (0x3EU << SPI_I2SPR_I2SDIV_Pos);    // I2SDIV = 62 (0x3E)
 
     /* ===== DMA Configuration ===== */
     DMA1_Stream4->CR &= ~DMA_SxCR_EN;
@@ -124,14 +116,14 @@ void DMA1_Stream4_IRQHandler(void) {
     // Half-transfer complete, second half of buffer is safe to write to
     if (DMA1->HISR & DMA_HISR_HTIF4) {
         DMA1->HIFCR = DMA_HIFCR_CHTIF4;
-        audio_target_index = I2S_BUFFER_SIZE / 2; // Target the second half
+        audio_target_index = 0;
         audio_buffer_request = true;              // Flag the main loop to process
     }
 
     // Full-transfer complete, first half of buffer is safe to write to
     if (DMA1->HISR & DMA_HISR_TCIF4) {
         DMA1->HIFCR = DMA_HIFCR_CTCIF4;
-        audio_target_index = 0;                   // Target the first half
+        audio_target_index = I2S_BUFFER_SIZE / 2;                
         audio_buffer_request = true;              // Flag the main loop to process
     }
 }
@@ -170,37 +162,47 @@ void Synth_Stop_Note(uint8_t channel, uint8_t noteNum) {
 void Process_Audio(int16_t* i2s_buffer, uint16_t bufferLen, uint16_t startIndex) {
     for (int i = startIndex; i < bufferLen + startIndex; i += 2) {
         int32_t mixedSample = 0;
+        int16_t s0 = 0;
+        int16_t s1 = 0;
         for (int v = 0; v < MAX_VOICES; v++) {
             if (voices[v].active) {
                 // Extract the active array index from the high 16 bits of the accumulator
                 uint16_t lutIndex = (voices[v].phase >> 16) & (SINE_LUT_SIZE - 1);
 
-                // Fetch the pre-computed sample value directly from your integer table
-                int16_t rawTableSample = sine_wave_lut[lutIndex];
+                // Fetch the pre-computed sample value directly from integer table
+                s0 = sine_wave_lut[lutIndex];
+                if (lutIndex != (SINE_LUT_SIZE-1)) {
+                    s1 = sine_wave_lut[lutIndex+1];
+                } else {
+                    s1 = sine_wave_lut[0];
+                }
+
+                int32_t blendedSample = s0 + (((int32_t)(s1 - s0) * (voices[v].phase & 0xFFFF)) >> 16);
 
                 // Apply velocity attenuation volume scaling cleanly
-                int32_t voiceSample = (rawTableSample * voices[v].velocity) / 127;
+                int32_t voiceSample = (blendedSample * voices[v].velocity) / 127;
                 mixedSample += voiceSample;
 
-                // FIXED-POINT INCREMENTATION: Add the pre-calculated step size 
+                // Add the pre-calculated step size 
                 // The fraction automatically rolls over into the high bits cleanly
                 voices[v].phase += voices[v].phaseInc;
             }
         }
 
-        // Master Attenuation: Scale down the mixed result to prevent clipping 
-        // down the road if many voices play at once.
-        mixedSample = mixedSample / (MAX_VOICES / 2); 
+        // Scale down the mixed result to prevent clipping 
+        mixedSample = mixedSample >> 2; 
 
-        // Hard-clipping guard layer
-        if (mixedSample > 32300)  mixedSample = 32300;
-        if (mixedSample < -32300) mixedSample = -32300;
+        // Soft clipping
+        float x = (float)mixedSample / 32768.0f;
+        if (x > 1.0f) x = 1.0f;
+        else if (x < -1.0f) x = -1.0f;
 
-        int16_t final_output = (int16_t)mixedSample;
+        float y = (1.5f * (x - ((x*x*x)/3.0f))) * 32767.0f;
+        int16_t finalOutput = (int16_t)y;
 
         // Output to I2S Buffer slots
-        i2s_buffer[i]     = final_output; // Left
-        i2s_buffer[i + 1] = final_output; // Right
+        i2s_buffer[i]     = finalOutput; // Left
+        i2s_buffer[i + 1] = finalOutput; // Right
     }
 }
 

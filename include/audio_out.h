@@ -7,13 +7,13 @@
 
 #define SAMPLING_FREQ_HZ 48000.0f
 
-#define I2S_BUFFER_SIZE 512
+#define I2S_BUFFER_SIZE 1024
 extern int16_t i2s_tx_buffer[I2S_BUFFER_SIZE];
 extern volatile bool audio_buffer_request;
 extern volatile uint16_t audio_target_index;
 
 #define MAX_MIDI_NOTES 128
-#define SINE_LUT_SIZE 256
+#define SINE_LUT_SIZE 2048
 extern uint32_t midi_fixed_phase_inc_lut[MAX_MIDI_NOTES];
 extern int16_t sine_wave_lut[SINE_LUT_SIZE];
 extern int16_t square_wave_lut[SINE_LUT_SIZE];
