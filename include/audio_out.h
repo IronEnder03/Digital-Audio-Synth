@@ -7,19 +7,62 @@
 
 #define SAMPLING_FREQ_HZ 48000.0f
 
-#define I2S_BUFFER_SIZE 1024
+#define I2S_BUFFER_SIZE 2048
 extern int16_t i2s_tx_buffer[I2S_BUFFER_SIZE];
 extern volatile bool audio_buffer_request;
 extern volatile uint16_t audio_target_index;
 
-#define MAX_MIDI_NOTES 128
-#define SINE_LUT_SIZE 2048
-extern uint32_t midi_fixed_phase_inc_lut[MAX_MIDI_NOTES];
-extern int16_t sine_wave_lut[SINE_LUT_SIZE];
-extern int16_t square_wave_lut[SINE_LUT_SIZE];
-extern int16_t triangle_wave_lut[SINE_LUT_SIZE];
-extern int16_t sawtooth_wave_lut[SINE_LUT_SIZE];
+typedef enum WaveForm {
+    SINE,
+    SQUARE,
+    TRIANGLE,
+    SAWTOOTH,
+} WaveForm;
 
+typedef enum FilterMode {
+    FILTER_LOWPASS,
+    FILTER_BANDPASS,
+    FILTER_HIGHPASS,
+} FilterMode;
+
+#define MAX_MIDI_NOTES 128
+#define WAVE_LUT_SIZE 2048
+extern volatile WaveForm currentWaveForm;
+extern uint32_t midi_fixed_phase_inc_lut[MAX_MIDI_NOTES];
+extern int16_t sine_wave_lut[WAVE_LUT_SIZE];
+extern int16_t square_wave_lut[WAVE_LUT_SIZE];
+extern int16_t triangle_wave_lut[WAVE_LUT_SIZE];
+extern int16_t sawtooth_wave_lut[WAVE_LUT_SIZE];
+
+extern volatile float attackTime;
+extern volatile float decayTime;
+extern volatile float releaseTime;
+extern volatile float sustainLevel;
+extern volatile float svf_f;
+extern volatile float svf_q;
+extern volatile FilterMode currentFilterMode;
+extern volatile float chorusMix;
+extern volatile float chorusDepth;
+extern volatile float delayMix;
+extern volatile float delayFeedback;
+#define DELAY_BUF_SIZE 16384
+extern volatile float reverbMix;
+extern volatile float reverbDecay;
+#define COMB1_LEN 1427
+#define COMB2_LEN 1781
+#define COMB3_LEN 1973
+#define COMB4_LEN 2099
+#define AP_SHARED_LEN 83
+#define AP_LEFT_LEN 241
+#define AP_RIGHT_LEN 263
+extern volatile float detuneRatio;
+extern volatile float lfoRateHz;
+extern volatile float vibratoDepth;
+extern volatile float autoWahDepth;
+
+#define SCOPE_BUF_SIZE 256
+extern int16_t scopeBuffer[SCOPE_BUF_SIZE];
+extern volatile bool scopeReady;
 
 /**
  * @brief Initialize I2S and DMA peripherals for outputting digital audio data.
@@ -53,6 +96,10 @@ void Synth_Stop_Note(uint8_t channel, uint8_t noteNum);
  */
 void Process_Audio(int16_t* i2s_buffer, uint16_t bufferLen,uint16_t startIndex);
 
+/**
+ * @brief Create audio waveform tables on boot-up as reference during audio process.
+ * 
+ */
 void Audio_Tables_Generate_On_Boot(void);
 
 #endif

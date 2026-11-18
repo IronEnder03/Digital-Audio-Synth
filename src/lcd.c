@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include "arm_math.h"
 
 #define LCD_WIDTH 128
 #define LCD_HEIGHT 64
@@ -14,6 +15,50 @@
 #define CS_PIN     (1 << 4)  // PA4
 #define SCK_PIN    (1 << 5)  // PA5 (SPI1 SCK)
 #define MOSI_PIN   (1 << 7)  // PA7 (SPI1 MOSI)
+
+// Each character is 5 vertical columns (bits 0..6 = top to bottom)
+const uint8_t font5x7[][5] = {
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // ' '
+    {0x3E, 0x51, 0x49, 0x45, 0x3E}, // '0'
+    {0x00, 0x42, 0x7F, 0x40, 0x00}, // '1'
+    {0x42, 0x61, 0x51, 0x49, 0x46}, // '2'
+    {0x21, 0x41, 0x45, 0x4B, 0x31}, // '3'
+    {0x18, 0x14, 0x12, 0x7F, 0x10}, // '4'
+    {0x27, 0x45, 0x45, 0x45, 0x39}, // '5'
+    {0x3C, 0x4A, 0x49, 0x49, 0x30}, // '6'
+    {0x01, 0x71, 0x09, 0x05, 0x03}, // '7'
+    {0x36, 0x49, 0x49, 0x49, 0x36}, // '8'
+    {0x06, 0x49, 0x49, 0x29, 0x1E}, // '9'
+    {0x00, 0x36, 0x36, 0x00, 0x00}, // ':'
+    {0x7E, 0x11, 0x11, 0x11, 0x7E}, // 'A'
+    {0x7F, 0x49, 0x49, 0x49, 0x36}, // 'B'
+    {0x3E, 0x41, 0x41, 0x41, 0x22}, // 'C'
+    {0x7F, 0x41, 0x41, 0x22, 0x1C}, // 'D'
+    {0x7F, 0x49, 0x49, 0x49, 0x41}, // 'E'
+    {0x7F, 0x09, 0x09, 0x09, 0x01}, // 'F'
+    {0x3E, 0x41, 0x49, 0x49, 0x7A}, // 'G'
+    {0x7F, 0x08, 0x08, 0x08, 0x7F}, // 'H'
+    {0x00, 0x41, 0x7F, 0x41, 0x00}, // 'I'
+    {0x20, 0x40, 0x41, 0x3F, 0x01}, // 'J'
+    {0x7F, 0x08, 0x14, 0x22, 0x41}, // 'K'
+    {0x7F, 0x40, 0x40, 0x40, 0x40}, // 'L'
+    {0x7F, 0x02, 0x0C, 0x02, 0x7F}, // 'M'
+    {0x7F, 0x04, 0x08, 0x10, 0x7F}, // 'N'
+    {0x3E, 0x41, 0x41, 0x41, 0x3E}, // 'O'
+    {0x7F, 0x09, 0x09, 0x09, 0x06}, // 'P'
+    {0x3E, 0x41, 0x51, 0x21, 0x5E}, // 'Q'
+    {0x7F, 0x09, 0x19, 0x29, 0x46}, // 'R'
+    {0x46, 0x49, 0x49, 0x49, 0x31}, // 'S'
+    {0x01, 0x01, 0x7F, 0x01, 0x01}, // 'T'
+    {0x3F, 0x40, 0x40, 0x40, 0x3F}, // 'U'
+    {0x1F, 0x20, 0x40, 0x20, 0x1F}, // 'V'
+    {0x3F, 0x40, 0x38, 0x40, 0x3F}, // 'W'
+    {0x63, 0x14, 0x08, 0x14, 0x63}, // 'X'
+    {0x07, 0x08, 0x70, 0x08, 0x07}, // 'Y'
+    {0x61, 0x51, 0x49, 0x45, 0x43}  // 'Z'
+};
+
+volatile uint8_t currentPage = 0;
 
 void SPI1_Init(void) {
     // Enable GPIO Port A, SPI1, and DMA2 clocks
@@ -44,8 +89,8 @@ void SPI1_Init(void) {
     //Reset SPI Config
     SPI1->CR1 = 0;
 
-    // Configure serial clock baud rate (fPCLK / 8)
-    SPI1->CR1 |= (2 << SPI_CR1_BR_Pos);
+    // Configure serial clock baud rate (fPCLK / 128)
+    SPI1->CR1 |= (6U << SPI_CR1_BR_Pos);
 
     // Clock phase and clock polarity (1 for both)
     SPI1->CR1 |= (SPI_CR1_CPOL | SPI_CR1_CPHA);
@@ -71,7 +116,7 @@ void SPI1_Init(void) {
     GPIOA->BSRR = RST_PIN;
 
     // Enable DMA2 Stream 3 Interrupt in the NVIC
-    NVIC_SetPriority(DMA2_Stream3_IRQn, 5); // Set a medium priority
+    NVIC_SetPriority(DMA2_Stream3_IRQn, 6); // Set a low priority
     NVIC_EnableIRQ(DMA2_Stream3_IRQn);
 
 }
@@ -313,3 +358,34 @@ void LCD_DrawSawToothWave(uint8_t amplitude, uint8_t cycles,
         previousY = y;
     }
 }
+
+static uint8_t Get_Glyph_Index(char c) {
+    if (c >= '0' && c <= ':') return (c - '0' + 1);
+    if (c >= 'A' && c <= 'Z') return (c - 'A' + 12);
+    if (c >= 'a' && c <= 'z') return (c - 'a' + 12); // Auto-capitalize
+    return 0;
+}
+
+void LCD_DrawChar(uint8_t x, uint8_t y, char c, uint8_t *frameBuffer) {
+    uint8_t idx = Get_Glyph_Index(c);
+    for (uint8_t col = 0; col < 5; col++) {
+        uint8_t line = font5x7[idx][col];
+        for (uint8_t row = 0; row < 7; row++) {
+            LCD_DrawPixel(x + col, y + row, (line >> row) & 0x01, frameBuffer);
+        }
+    }
+
+    // 1-pixel blank spacer column between characters
+    for (uint8_t row = 0; row < 7; row++) {
+        LCD_DrawPixel(x + 5, y + row, 0, frameBuffer);
+    }
+}
+
+void LCD_DrawString(uint8_t x, uint8_t y, const char* str, uint8_t *frameBuffer) {
+    while(*str) {
+        if (x + 5 >= 128) break; // Stop safely at right edge
+        LCD_DrawChar(x, y, *str++, frameBuffer);
+        x += 6; // 5px glyph + 1px spacing
+    }
+}
+

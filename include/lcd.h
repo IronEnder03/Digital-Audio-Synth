@@ -4,6 +4,8 @@
 #include "stm32f4xx.h"
 #include <stdbool.h>
 
+extern volatile uint8_t currentPage;
+
 /**
  * @brief Initialize SP1 with DMA2
  * 
@@ -163,5 +165,33 @@ void LCD_DrawTriangleWave(uint8_t amplitude, uint8_t cycles,
  */
 void LCD_DrawSawToothWave(uint8_t amplitude, uint8_t cycles, 
     uint8_t x_offset, uint8_t y_offset, uint8_t *frameBuffer);
+
+/**
+ * @brief Get index of given character from font table.
+ * 
+ * @param c The character to retrieve the index for.
+ * @return uint8_t The index of the given character.
+ */
+static uint8_t Get_Glyph_Index(char c);
+
+/**
+ * @brief Draw given character at the given coordinates.
+ * 
+ * @param x The x-coordinate where the character is drawn on the LCD.
+ * @param y The y-coordinate where the character is drawn on the LCD.
+ * @param c The character to draw on the LCD.
+ * @param frameBuffer The frame buffer to save display changes for the LCD.
+ */
+void LCD_DrawChar(uint8_t x, uint8_t y, char c, uint8_t *frameBuffer);
+
+/**
+ * @brief Draw given string on the LCD at the given coordinates.
+ * 
+ * @param x The x-coordinate where the string is drawn on the LCD.
+ * @param y The y-coordinate where the string is drawn on the LCD.
+ * @param str The text string to draw on the LCD.
+ * @param frameBuffer The frame buffer to save display changes for the LCD.
+ */
+void LCD_DrawString(uint8_t x, uint8_t y, const char* str, uint8_t *frameBuffer);
 
 #endif

@@ -11,7 +11,7 @@ DEVICE_DRIVER_DIR = drivers/CMSIS/Device/ST/STM32F4xx
 
 C_SOURCES = src/main.c \
 $(DEVICE_DRIVER_DIR)/Source/Templates/system_stm32f4xx.c \
-src/lcd.c src/util.c src/midi_input.c src/audio_out.c 
+src/lcd.c src/util.c src/midi_input.c src/audio_out.c src/controls.c
 ASM_SOURCES = $(DEVICE_DRIVER_DIR)/Source/Templates/gcc/startup_stm32f446xx.s
 
 C_SOURCES += \
@@ -37,7 +37,7 @@ INCLUDES = \
 -Idrivers/CMSIS/Device/ST/STM32F4xx/Include
 
 # Compiler Flags
-CFLAGS = $(MCU) $(DEFINES) $(INCLUDES) -O0 -Wall -Wextra -std=c11 -fdata-sections -ffunction-sections
+CFLAGS = $(MCU) $(DEFINES) $(INCLUDES) -O2 -Wall -Wextra -std=c11 -fdata-sections -ffunction-sections
 
 # Linker Flags
 LINKER_SCRIPT = STM32F446RETX_FLASH.ld

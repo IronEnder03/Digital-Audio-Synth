@@ -3,8 +3,6 @@
 
 #include "stm32f4xx.h"
 
-#define PI 3.141592654
-
 extern volatile uint32_t msTicks;
 
 /**
@@ -31,5 +29,11 @@ void delay_us(uint32_t us);
  *          0 if the number is zero.
  */
 int8_t signf(float num);
+
+/**
+ * @brief Set the system clock to 180 MHz.
+ * 
+ */
+void SystemClock_Boost_180MHz(void);
 
 #endif
