@@ -38,7 +38,23 @@ int main(void) {
     uint32_t start = msTicks;
 
     // Start Watchdog Timer
-    IWDG->KR |= 0xCCCC;
+    IWDG->KR = 0xCCCC;
+
+    // Unlock IWDG_PR and IWDG_RLR registers
+    IWDG->KR = 0X5555;
+
+    // Set prescalar to Watchdog Timer (divider /8)
+    IWDG->PR = 1;
+
+    // Set counter reload value
+    IWDG->RLR = 3999;
+
+    // Wait for updates
+    while (IWDG->SR != 0U) {
+
+    }
+
+    IWDG->KR = 0xAAAA;
 
     // Main Execution Loop
     while (1) {
@@ -153,7 +169,7 @@ int main(void) {
         }
 
         // Update Watchdog key to prevent resetting
-        IWDG->KR |= 0xAAAA;
+        IWDG->KR = 0xAAAA;
     }
 }
 
