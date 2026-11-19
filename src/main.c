@@ -37,6 +37,9 @@ int main(void) {
     uint8_t x_offset = 0;
     uint32_t start = msTicks;
 
+    // Start Watchdog Timer
+    IWDG->KR |= 0xCCCC;
+
     // Main Execution Loop
     while (1) {
         // Drain MIDI controller circular buffer
@@ -148,6 +151,9 @@ int main(void) {
 
             start = msTicks;
         }
+
+        // Update Watchdog key to prevent resetting
+        IWDG->KR |= 0xAAAA;
     }
 }
 
